@@ -1,5 +1,6 @@
 package cognito
 
+//go package cognito srp
 import (
 	"context"
 	"fmt"
