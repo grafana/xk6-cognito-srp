@@ -1,4 +1,4 @@
-package cognitosrp
+package cognito
 
 import (
 	"context"
@@ -19,7 +19,7 @@ import (
 // import from JS as "k6/x/cognito".
 func init() {
 	fmt.Printf("Inside init")
-	modules.Register("k6/x/cognito-srp", new(Cognito-srp))
+	modules.Register("k6/x/cognito-srp", new(Cognito))
 }
 
 // Cognito is the k6 extension for a Cognito client.
