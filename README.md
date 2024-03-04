@@ -8,7 +8,8 @@ go install go.k6.io/xk6/cmd/xk6@latest
 
 xk6 build master  --with github.com/OS-jyothikaspa/xk6-cognito-srp
 
-This will generage a k6 executable in the current folder, use the executable to run the k6 scripts.
+This will generage a k6 executable in the current folder,  
+use the executable to run the k6 scripts.
 ./k6 run "script_name"
 ./k6.exe run "script_name"
 
