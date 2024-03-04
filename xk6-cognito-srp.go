@@ -1,10 +1,10 @@
-package cognito-srp
-
+package cognitosrp
 
 import (
 	"context"
 	"fmt"
 	"time"
+
 	cognitosrp "github.com/alexrudd/cognito-srp/v4"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -12,38 +12,34 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider/types"
 
 	// "go.k6.io/k6/js/common"
-    "go.k6.io/k6/js/modules"
+	"go.k6.io/k6/js/modules"
 )
-
 
 // Register the extension on module initialization, available to
 // import from JS as "k6/x/cognito".
 func init() {
-	fmt.Printf("Inside init");	
-    modules.Register("k6/x/cognito-srp", new(Cognito-srp))
+	fmt.Printf("Inside init")
+	modules.Register("k6/x/cognito-srp", new(Cognito-srp))
 }
 
 // Cognito is the k6 extension for a Cognito client.
 type Cognito struct{}
 
 // Client is the Cognito client wrapper.
-type Client struct {	
-		// https://github.com/aws/aws-sdk-go-v2/blob/main/service/cognitoidentityprovider/api_client.go
-    client *cip.Client
-	
+type Client struct {
+	// https://github.com/aws/aws-sdk-go-v2/blob/main/service/cognitoidentityprovider/api_client.go
+	client *cip.Client
 }
 type keyValue map[string]interface{}
 
-
 type AuthOptionalParams struct {
-	// https://stackoverflow.com/questions/2032149/optional-parameters-in-go		
+	// https://stackoverflow.com/questions/2032149/optional-parameters-in-go
 	clientMetadata map[string]string
-	cognitoSecret *string
-  }
-
+	cognitoSecret  *string
+}
 
 func contains(array []string, element string) bool {
-	fmt.Printf("Inside contains");
+	fmt.Printf("Inside contains")
 	for _, item := range array {
 		if item == element {
 			return true
@@ -52,41 +48,38 @@ func contains(array []string, element string) bool {
 	return false
 }
 
-func (r *Cognito) Connect( region string ) (*Client, error) {
+func (r *Cognito) Connect(region string) (*Client, error) {
 
-	fmt.Printf("Inside Connect", region);
-	
+	fmt.Printf("Inside Connect", region)
+
 	regionAws := config.WithRegion(region)
-	 //cred := config.WithCredentialsProvider(aws.AnonymousCredentials{})
+	//cred := config.WithCredentialsProvider(aws.AnonymousCredentials{})
 
 	// configure cognito identity provider
 	// https://github.com/aws/aws-sdk-go-v2
 	cfg, err := config.LoadDefaultConfig(
 		context.TODO(),
-		regionAws ,
+		regionAws,
 	)
 
 	if err != nil {
 		return nil, err
 	}
 
-	client := Client{	
+	client := Client{
 		client: cip.NewFromConfig(cfg),
-		
 	}
- 
 
 	return &client, nil
 }
 
-
-func (c *Client) Auth(  username string, password string, poolId string, clientId string, params AuthOptionalParams ) (keyValue, error) {
+func (c *Client) Auth(username string, password string, poolId string, clientId string, params AuthOptionalParams) (keyValue, error) {
 	// configure cognito srp
 	// https://github.com/alexrudd/cognito-srp
-	csrp, _  := cognitosrp.NewCognitoSRP(username, password, poolId, clientId, params.cognitoSecret)
+	csrp, _ := cognitosrp.NewCognitoSRP(username, password, poolId, clientId, params.cognitoSecret)
 
 	// initiate auth
-	resp, err := c.client.InitiateAuth( context.TODO(), &cip.InitiateAuthInput{
+	resp, err := c.client.InitiateAuth(context.TODO(), &cip.InitiateAuthInput{
 		AuthFlow:       types.AuthFlowTypeUserSrpAuth,
 		ClientId:       aws.String(csrp.GetClientId()),
 		AuthParameters: csrp.GetAuthParams(),
@@ -117,9 +110,9 @@ func (c *Client) Auth(  username string, password string, poolId string, clientI
 		// data := make(keyValue, 3)
 
 		data := keyValue{
-			"AccessToken":           *resp.AuthenticationResult.AccessToken,
-			"IdToken": *resp.AuthenticationResult.IdToken ,
-			"RefreshToken" : *resp.AuthenticationResult.RefreshToken,
+			"AccessToken":  *resp.AuthenticationResult.AccessToken,
+			"IdToken":      *resp.AuthenticationResult.IdToken,
+			"RefreshToken": *resp.AuthenticationResult.RefreshToken,
 		}
 
 		// data["AccessToken"] := *resp.AuthenticationResult.AccessToken
@@ -133,5 +126,4 @@ func (c *Client) Auth(  username string, password string, poolId string, clientI
 		return nil, fmt.Errorf("Challenge %s is not supported", resp.ChallengeName)
 	}
 
-	
 }
