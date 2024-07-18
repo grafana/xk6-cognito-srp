@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	cognitosrp "github.com/alexrudd/cognito-srp/v4.1.0"
+	cognitosrp "github.com/alexrudd/cognito-srp/v4"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	cip "github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider"
@@ -74,15 +74,10 @@ func (r *Cognito) Connect(region string) (*Client, error) {
 	return &client, nil
 }
 
-func (c *Client) Auth(username, password, poolId, clientId string, params AuthOptionalParams) (keyValue, error) {
-    if username == "" || password == "" || poolId == "" || clientId == "" {
-        return nil, fmt.Errorf("All parameters (username, password, poolId, clientId) must be non-empty")
-    }
-
-    csrp, err := cognitosrp.NewCognitoSRP(username, password, poolId, clientId, params.cognitoSecret)
-    if err != nil {
-        return nil, fmt.Errorf("Failed to initialize CognitoSRP: %w", err)
-    }
+func (c *Client) Auth(username string, password string, poolId string, clientId string, params AuthOptionalParams) (keyValue, error) {
+	// configure cognito srp
+	// https://github.com/alexrudd/cognito-srp
+	csrp, _ := cognitosrp.NewCognitoSRP(username, password, poolId, clientId, params.cognitoSecret)
 
 	// initiate auth
 	resp, err := c.client.InitiateAuth(context.TODO(), &cip.InitiateAuthInput{
