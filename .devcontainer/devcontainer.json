@@ -1,0 +1,14 @@
+{
+  "name": "xk6-cognito-srp",
+  "image": "mcr.microsoft.com/devcontainers/base:1-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/go:1": {
+      "version": "1.23",
+      "golangciLintVersion": "1.64.6"
+    },
+    "ghcr.io/grafana/devcontainer-features/xk6:1": { "version": "0.14.0" },
+    "ghcr.io/devcontainers-extra/features/eget:1": {}
+  },
+  "postCreateCommand": "eget --to=/home/vscode/.local/bin/k6lint --tag=v0.3.2 grafana/k6lint"
+}
