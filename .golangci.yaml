@@ -1,3 +1,0 @@
-linters:
-  disable:
-    - goanalysis_metalinter
