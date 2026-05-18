@@ -29,7 +29,8 @@ type Client struct {
 	client *cip.Client
 }
 
-type keyValue map[string]any
+// KeyValue is a JS-friendly map of the tokens returned by Auth.
+type KeyValue map[string]any
 
 // AuthOptionalParams holds optional parameters for the Auth call.
 // All fields are unexported and will need setters before they can be populated from JS.
@@ -57,7 +58,7 @@ func (r *Cognito) Connect(region string) (*Client, error) {
 
 // Auth performs the USER_SRP_AUTH flow and returns the AccessToken, IdToken,
 // and RefreshToken on success.
-func (c *Client) Auth(username, password, poolID, clientID string, params AuthOptionalParams) (keyValue, error) {
+func (c *Client) Auth(username, password, poolID, clientID string, params AuthOptionalParams) (KeyValue, error) {
 	csrp, err := cognitosrp.NewCognitoSRP(username, password, poolID, clientID, params.cognitoSecret)
 	if err != nil {
 		return nil, err
@@ -95,7 +96,7 @@ func (c *Client) handlePasswordVerifierChallenge(
 	csrp *cognitosrp.CognitoSRP,
 	clientID string,
 	params AuthOptionalParams,
-) (keyValue, error) {
+) (KeyValue, error) {
 	challengeResponses, err := csrp.PasswordVerifierChallenge(resp.ChallengeParameters, time.Now())
 	if err != nil {
 		return nil, err
@@ -122,7 +123,7 @@ func (c *Client) handlePasswordVerifierChallenge(
 	return extractTokens(challengeResp), nil
 }
 
-func (c *Client) handleMFAChallenge(session, mfaCode, clientID string) (keyValue, error) {
+func (c *Client) handleMFAChallenge(session, mfaCode, clientID string) (KeyValue, error) {
 	log.Printf("DEBUG: Responding to MFA challenge")
 
 	mfaResp, err := c.client.RespondToAuthChallenge(context.TODO(), &cip.RespondToAuthChallengeInput{
@@ -141,8 +142,8 @@ func (c *Client) handleMFAChallenge(session, mfaCode, clientID string) (keyValue
 	return extractTokens(mfaResp), nil
 }
 
-func extractTokens(resp *cip.RespondToAuthChallengeOutput) keyValue {
-	return keyValue{
+func extractTokens(resp *cip.RespondToAuthChallengeOutput) KeyValue {
+	return KeyValue{
 		"AccessToken":  *resp.AuthenticationResult.AccessToken,
 		"IdToken":      *resp.AuthenticationResult.IdToken,
 		"RefreshToken": *resp.AuthenticationResult.RefreshToken,
