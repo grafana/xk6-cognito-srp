@@ -1,3 +1,4 @@
+// Package cognito provides AWS Cognito SRP authentication for k6 scripts.
 package cognito
 
 import (
@@ -20,18 +21,26 @@ func init() {
 	modules.Register("k6/x/cognito-srp", new(Cognito))
 }
 
+// Cognito is the module's root object, exposed to JS as `k6/x/cognito-srp`.
 type Cognito struct{}
+
+// Client wraps an AWS Cognito Identity Provider client.
 type Client struct {
 	client *cip.Client
 }
 
-type keyValue map[string]interface{}
+// KeyValue is a JS-friendly map of the tokens returned by Auth.
+type KeyValue map[string]any
+
+// AuthOptionalParams holds optional parameters for the Auth call.
+// All fields are unexported and will need setters before they can be populated from JS.
 type AuthOptionalParams struct {
 	clientMetadata map[string]string
 	cognitoSecret  *string
 	mfaCode        string
 }
 
+// Connect returns a Client configured for the given AWS region.
 func (r *Cognito) Connect(region string) (*Client, error) {
 	log.Printf("DEBUG: Connecting to Cognito in region: %s", region)
 
@@ -47,8 +56,10 @@ func (r *Cognito) Connect(region string) (*Client, error) {
 	return &client, nil
 }
 
-func (c *Client) Auth(username, password, poolId, clientId string, params AuthOptionalParams) (keyValue, error) {
-	csrp, err := cognitosrp.NewCognitoSRP(username, password, poolId, clientId, params.cognitoSecret)
+// Auth performs the USER_SRP_AUTH flow and returns the AccessToken, IdToken,
+// and RefreshToken on success.
+func (c *Client) Auth(username, password, poolID, clientID string, params AuthOptionalParams) (KeyValue, error) {
+	csrp, err := cognitosrp.NewCognitoSRP(username, password, poolID, clientID, params.cognitoSecret)
 	if err != nil {
 		return nil, err
 	}
@@ -66,21 +77,26 @@ func (c *Client) Auth(username, password, poolId, clientId string, params AuthOp
 	// Handle authentication challenges
 	switch initiateResp.ChallengeName {
 	case types.ChallengeNameTypePasswordVerifier:
-		return c.handlePasswordVerifierChallenge(initiateResp, csrp, clientId, params)
+		return c.handlePasswordVerifierChallenge(initiateResp, csrp, clientID, params)
 
 	case types.ChallengeNameTypeSmsMfa:
 		// Handle MFA Challenge
 		if params.mfaCode == "" {
 			return nil, fmt.Errorf("MFA required but no code provided")
 		}
-		return c.handleMFAChallenge(*initiateResp.Session, params.mfaCode, clientId)
+		return c.handleMFAChallenge(*initiateResp.Session, params.mfaCode, clientID)
 
 	default:
 		return nil, fmt.Errorf("unsupported challenge: %s", initiateResp.ChallengeName)
 	}
 }
 
-func (c *Client) handlePasswordVerifierChallenge(resp *cip.InitiateAuthOutput, csrp *cognitosrp.CognitoSRP, clientId string, params AuthOptionalParams) (keyValue, error) {
+func (c *Client) handlePasswordVerifierChallenge(
+	resp *cip.InitiateAuthOutput,
+	csrp *cognitosrp.CognitoSRP,
+	clientID string,
+	params AuthOptionalParams,
+) (KeyValue, error) {
 	challengeResponses, err := csrp.PasswordVerifierChallenge(resp.ChallengeParameters, time.Now())
 	if err != nil {
 		return nil, err
@@ -89,7 +105,7 @@ func (c *Client) handlePasswordVerifierChallenge(resp *cip.InitiateAuthOutput, c
 	challengeResp, err := c.client.RespondToAuthChallenge(context.TODO(), &cip.RespondToAuthChallengeInput{
 		ChallengeName:      types.ChallengeNameTypePasswordVerifier,
 		ChallengeResponses: challengeResponses,
-		ClientId:           aws.String(clientId),
+		ClientId:           aws.String(clientID),
 		Session:            resp.Session, // Ensure session is passed for next step (MFA)
 	})
 	if err != nil {
@@ -101,13 +117,13 @@ func (c *Client) handlePasswordVerifierChallenge(resp *cip.InitiateAuthOutput, c
 		if params.mfaCode == "" {
 			return nil, fmt.Errorf("MFA required but no code provided")
 		}
-		return c.handleMFAChallenge(*challengeResp.Session, params.mfaCode, clientId)
+		return c.handleMFAChallenge(*challengeResp.Session, params.mfaCode, clientID)
 	}
 
 	return extractTokens(challengeResp), nil
 }
 
-func (c *Client) handleMFAChallenge(session, mfaCode, clientId string) (keyValue, error) {
+func (c *Client) handleMFAChallenge(session, mfaCode, clientID string) (KeyValue, error) {
 	log.Printf("DEBUG: Responding to MFA challenge")
 
 	mfaResp, err := c.client.RespondToAuthChallenge(context.TODO(), &cip.RespondToAuthChallengeInput{
@@ -116,7 +132,7 @@ func (c *Client) handleMFAChallenge(session, mfaCode, clientId string) (keyValue
 			"USERNAME":     session, // Ensure this is correct
 			"SMS_MFA_CODE": mfaCode,
 		},
-		ClientId: aws.String(clientId),
+		ClientId: aws.String(clientID),
 		Session:  aws.String(session),
 	})
 	if err != nil {
@@ -126,8 +142,8 @@ func (c *Client) handleMFAChallenge(session, mfaCode, clientId string) (keyValue
 	return extractTokens(mfaResp), nil
 }
 
-func extractTokens(resp *cip.RespondToAuthChallengeOutput) keyValue {
-	return keyValue{
+func extractTokens(resp *cip.RespondToAuthChallengeOutput) KeyValue {
+	return KeyValue{
 		"AccessToken":  *resp.AuthenticationResult.AccessToken,
 		"IdToken":      *resp.AuthenticationResult.IdToken,
 		"RefreshToken": *resp.AuthenticationResult.RefreshToken,
