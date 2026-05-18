@@ -57,8 +57,8 @@ func (r *Cognito) Connect(region string) (*Client, error) {
 
 // Auth performs the USER_SRP_AUTH flow and returns the AccessToken, IdToken,
 // and RefreshToken on success.
-func (c *Client) Auth(username, password, poolId, clientId string, params AuthOptionalParams) (keyValue, error) {
-	csrp, err := cognitosrp.NewCognitoSRP(username, password, poolId, clientId, params.cognitoSecret)
+func (c *Client) Auth(username, password, poolID, clientID string, params AuthOptionalParams) (keyValue, error) {
+	csrp, err := cognitosrp.NewCognitoSRP(username, password, poolID, clientID, params.cognitoSecret)
 	if err != nil {
 		return nil, err
 	}
@@ -76,21 +76,26 @@ func (c *Client) Auth(username, password, poolId, clientId string, params AuthOp
 	// Handle authentication challenges
 	switch initiateResp.ChallengeName {
 	case types.ChallengeNameTypePasswordVerifier:
-		return c.handlePasswordVerifierChallenge(initiateResp, csrp, clientId, params)
+		return c.handlePasswordVerifierChallenge(initiateResp, csrp, clientID, params)
 
 	case types.ChallengeNameTypeSmsMfa:
 		// Handle MFA Challenge
 		if params.mfaCode == "" {
 			return nil, fmt.Errorf("MFA required but no code provided")
 		}
-		return c.handleMFAChallenge(*initiateResp.Session, params.mfaCode, clientId)
+		return c.handleMFAChallenge(*initiateResp.Session, params.mfaCode, clientID)
 
 	default:
 		return nil, fmt.Errorf("unsupported challenge: %s", initiateResp.ChallengeName)
 	}
 }
 
-func (c *Client) handlePasswordVerifierChallenge(resp *cip.InitiateAuthOutput, csrp *cognitosrp.CognitoSRP, clientID string, params AuthOptionalParams) (keyValue, error) {
+func (c *Client) handlePasswordVerifierChallenge(
+	resp *cip.InitiateAuthOutput,
+	csrp *cognitosrp.CognitoSRP,
+	clientID string,
+	params AuthOptionalParams,
+) (keyValue, error) {
 	challengeResponses, err := csrp.PasswordVerifierChallenge(resp.ChallengeParameters, time.Now())
 	if err != nil {
 		return nil, err
