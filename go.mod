@@ -2,7 +2,7 @@ module github.com/OS-jyothikaspa/xk6-cognito-srp
 
 go 1.25.0
 
-toolchain go1.25.11
+toolchain go1.26.10
 
 require (
 	github.com/alexrudd/cognito-srp/v4 v4.1.0
